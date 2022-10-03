@@ -76,7 +76,7 @@ class DpNet(nn.Module):
         self.classifier1 = nn.Sequential(
             nn.Linear(nm[-1], 128),
             nn.ReLU(inplace=True),
-            nn.Linear(128, len(cfg.provinces)),
+            nn.Linear(128, len(cfg.chars)),
         )
 
     def forward(self, input):

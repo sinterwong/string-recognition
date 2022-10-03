@@ -73,7 +73,7 @@ class DpNet(nn.Module):
             nn.Linear(512, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
         self.classifier2 = nn.Sequential(
@@ -81,7 +81,7 @@ class DpNet(nn.Module):
             nn.Linear(512, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
         self.classifier3 = nn.Sequential(
@@ -89,7 +89,7 @@ class DpNet(nn.Module):
             nn.Linear(512, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
         self.classifier4 = nn.Sequential(
@@ -97,7 +97,7 @@ class DpNet(nn.Module):
             nn.Linear(512, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
         self.classifier5 = nn.Sequential(
@@ -105,7 +105,7 @@ class DpNet(nn.Module):
             nn.Linear(512, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
         self.classifier6 = nn.Sequential(
@@ -113,7 +113,7 @@ class DpNet(nn.Module):
             nn.Linear(512, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
         self.classifier7 = nn.Sequential(
@@ -121,7 +121,7 @@ class DpNet(nn.Module):
             nn.Linear(512, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
     def forward(self, input):

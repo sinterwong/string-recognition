@@ -1,2 +1,2 @@
-# string-recognition
-字符串识别算法
+# verifi-code-recogntion
+验证码识别

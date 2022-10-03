@@ -3,7 +3,7 @@ import config as cfg
 
 
 def data_transform(is_train=True):
-    normalize_transform = T.Normalize(mean=cfg.pixel_mean, std=cfg.pixel_std)
+    # normalize_transform = T.Normalize(mean=cfg.pixel_mean, std=cfg.pixel_std)
     if is_train:
         transform = T.Compose([
             T.Resize(cfg.input_size),
@@ -13,7 +13,7 @@ def data_transform(is_train=True):
             T.Pad(cfg.pad),
             T.RandomCrop(cfg.input_size),
             T.ToTensor(),
-            normalize_transform,
+            # normalize_transform,
         ])
 
         return transform
@@ -22,7 +22,7 @@ def data_transform(is_train=True):
         transform = T.Compose([
             T.Resize(cfg.input_size),
             T.ToTensor(),
-            normalize_transform
+            # normalize_transform
         ])
 
     return transform

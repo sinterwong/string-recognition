@@ -7,36 +7,19 @@ import torch.nn.functional as F
 
 # AMSoftmax 层的pytorch实现，两个重要参数 scale，margin（不同难度和量级的数据对应不同的最优参数）
 class AMSoftmax(nn.Module):
-    def __init__(self):
+    def __init__(self, m=0.3, s=15):
         super(AMSoftmax, self).__init__()
+        self.m = m
+        self.s = s
+        self.ce = nn.CrossEntropyLoss()
 
-    def forward(self, input, target, scale=10.0, margin=0.35):
-        # self.it += 1
-        cos_theta = input
-        target = target.view(-1, 1)  # size=(B,1)
-
-        index = cos_theta.data * 0.0  # size=(B,Classnum)
-        index.scatter_(1, target.data.view(-1, 1), 1)
-        index = index.byte()
-        index = Variable(index)
-
-        output = cos_theta * 1.0  # size=(B,Classnum)
-        output[index] -= margin
-        output = output * scale
-
-        logpt = F.log_softmax(output)
-        # logpt = F.logsigmoid(output)
-
-        logpt = logpt.gather(1, target)
-        logpt = logpt.view(-1)
-
-        loss = -1 * logpt
-        loss = loss.mean()
-
+    def forward(self, x, lb):
+        costh = x
+        lb_view = lb.view(-1, 1)
+        if lb_view.is_cuda: lb_view = lb_view.cpu()
+        delt_costh = torch.zeros(costh.size()).scatter_(1, lb_view, self.m)
+        if x.is_cuda: delt_costh = delt_costh.cuda()
+        costh_m = costh - delt_costh
+        costh_m_s = self.s * costh_m
+        loss = self.ce(costh_m_s, lb)
         return loss
-
-if __name__ == '__main__':
-    
-    print(loss.detach().numpy())
-    print(list(criteria.parameters())[0].shape)
-    print(type(next(criteria.parameters())))

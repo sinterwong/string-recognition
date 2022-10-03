@@ -2,6 +2,7 @@ from __future__ import print_function
 from loss import AMSoftmax
 import logging
 from models.dpnet_v3 import DpNet
+from models.resnet import ResDpnet
 from verification import eval_dpnet
 import time
 from data.transform import data_transform
@@ -48,39 +49,27 @@ def train_model(cfg, lrScheduler, train_loader, store_name, model, criterion, op
     epochs = cfg.nepoch
     batch_size = cfg.batch_size
     device = cfg.device
-    loss_lambda = 1.2
-
     best_acc = 0
 
     for epoch in range(epochs):
+
+        # model train
         loss_aver = []
         model.train(True)
-        lrScheduler.step()
         start = time.time()
 
-        r'''
         for i, (data, label_pro) in enumerate(train_loader):
             if len(data) != batch_size:
-                # print('num data: ', len(data))
                 continue
             data = data.to(device) if use_gpu else data
             # predict -- > [7, batch, 35]
             predicts = model(data)
-            # print(predicts.size())
             predict_lp = predicts.split(1, 0)  # ([1, batch, 35], ....)
 
             loss = 0.0
-
             for j in range(len(predict_lp)):
                 l = Variable(torch.LongTensor(
                     [el[j] for el in label_pro]).cuda(0))
-
-                """ 特别关注第一位
-                if j == 0:
-                    loss += (loss_lambda * criterion(predict_lp[j].squeeze(0), l))
-                else:
-                    loss += criterion(predict_lp[j].squeeze(0), l)
-                """
 
                 loss += criterion(predict_lp[j].squeeze(0), l)
 
@@ -92,7 +81,7 @@ def train_model(cfg, lrScheduler, train_loader, store_name, model, criterion, op
 
             loss_val = sum(loss_aver) / len(loss_aver)
 
-            if i % 50 == 0:
+            if i % cfg.displayInterval == 0:
                 logging.info('[%d/%d][%d/%d] Loss: %f' %
                              (epoch, cfg.nepoch, i, len(train_loader), loss_val))
         if len(loss_aver) < 1:
@@ -102,13 +91,13 @@ def train_model(cfg, lrScheduler, train_loader, store_name, model, criterion, op
                                      len(loss_aver), time.time() - start))
         model.eval()
         count, correct, error, precision, avg_time = eval_dpnet(
-            model, cfg.val_root, use_gpu, device, save_error=False)
+            model, use_gpu, device, save_error=True)
         logging.info(
             '****************************** Val ********************************')
         logging.info('epoch: %s, loss: %3.3f, cost time: %s' % (
             epoch, float(sum(loss_aver) / len(loss_aver)), time.time() - start))
-        logging.info('*** total %s error %s precision %s avgTime %s' %
-                     (count, error, precision, avg_time))
+        logging.info('*** total %s correct %s error %s precision %s avgTime %s' %
+                     (count, correct, error, precision, avg_time))
         logging.info(
             '*******************************************************************\n')
 
@@ -117,24 +106,13 @@ def train_model(cfg, lrScheduler, train_loader, store_name, model, criterion, op
                 'net': model.state_dict(),
                 'acc': precision
             }
-            save_path = os.path.join(cfg.output, "DpNetV3_AM_Double_acc%.5f.pth" % (precision))
+            save_path = os.path.join(
+                cfg.output, "best_%.3f.pth" % (precision))
             torch.save(state, save_path)
 
             best_acc = precision
-        '''
 
-        # """
-        model.eval()
-        count, correct, error, precision, avg_time = eval_dpnet(
-            model, cfg.val_root, use_gpu, device, save_error=True)
-        logging.info(
-            '****************************** Val ********************************')
-        logging.info('*** total %s error %s precision %s avgTime %s' %
-                     (count, error, precision, avg_time))
-        logging.info(
-            '*******************************************************************\n')
-        exit()
-        # """
+        lrScheduler.step()
 
     return model
 
@@ -144,43 +122,28 @@ def main():
     if not os.path.isdir(cfg.output):
         os.makedirs(cfg.output)
 
-    store_name = os.path.join(cfg.output, 'DpNet.pth')
-
-    if cfg.resume_file != 'restart':
+    store_name = os.path.join(cfg.output, 'best.pth')
+    # model = DpNet(cfg.input_size[0], length=cfg.text_length)
+    model = ResDpnet(False, pretrained=cfg.pretrained_path,
+                     length=cfg.text_length)
+    if cfg.resume_file:
         if not os.path.isfile(cfg.resume_file):
             print("fail to load existed model! Existing ...")
             exit(0)
-
-        print("Load existed model! %s" % cfg.resume_file)
-        model = DpNet(cfg.input_size[0], length=cfg.text_length)
-
-        '''
-        org_dict = torch.load(cfg.resume_file)
-        # print(org_dict)
-        temp = collections.OrderedDict()
-        for k, v in org_dict['net'].items():
-            temp['.'.join(k.split('.')[1:])] = v
-
-        model.load_state_dict(temp)
-        model = model.to(cfg.device)
-        '''
-
-        # model = torch.nn.DataParallel(
-        #     model, device_ids=list(range(torch.cuda.device_count())))
         model.load_state_dict(torch.load(cfg.resume_file)['net'])
-        model = model.to(cfg.device)
-
     else:
-        model = DpNet(cfg.input_size[0], length=cfg.text_length)
         model.apply(weights_init)  # 初始化参数
-        if use_gpu:
-            # 设置多卡训练
-            model = torch.nn.DataParallel(
-                model, device_ids=list(range(torch.cuda.device_count())))
-            model = model.to(cfg.device)
+    # if use_gpu:
+    #     # 设置多卡训练
+    #     model = torch.nn.DataParallel(
+    #         model, device_ids=list(range(torch.cuda.device_count())))
+    model = model.to(cfg.device)
     print('model params: ', get_n_params(model))
-    # criterion = nn.CrossEntropyLoss()
-    criterion = AMSoftmax()
+    if cfg.loss_name == "amsoftmax":
+        criterion = AMSoftmax()
+    else:
+        criterion = nn.CrossEntropyLoss()
+
     optimizer = optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9)
 
     lr_scheduler = torch.optim.lr_scheduler.StepLR(

@@ -35,7 +35,8 @@ def read_image(img_path, part_size=0):
                 img = Image.open(img_path).convert('RGB')
                 got_img = True
             except IOError:
-                print("IOError incurred when reading '{}'. Will redo. Don't worry. Just chill.".format(img_path))
+                print("IOError incurred when reading '{}'. Will redo. Don't worry. Just chill.".format(
+                    img_path))
                 pass
         return img
 
@@ -52,8 +53,7 @@ class TextImageSet(Dataset):
         self.is_train = is_train
 
         # label 转换映射
-        self.provinces2idx = cfg.provinces2idx
-        # self.alphabets2idx = cfg.alphabets2idx
+        self.chars2idx = cfg.chars2idx
 
     def __len__(self):
         return len(self.image_paths)
@@ -68,9 +68,7 @@ class TextImageSet(Dataset):
 
             plate = os.path.basename(img_p).split('_')[0]
 
-            [label.append(self.provinces2idx[p]) for p in plate]
-            # label.append(self.provinces2idx[plate[0]])
-            # [label.append(self.alphabets2idx[p]) for p in plate[1:]]
+            [label.append(self.chars2idx[p]) for p in plate]
 
             if self.transform is not None:
                 text_img = self.transform(text_img)
@@ -85,10 +83,7 @@ class TextImageSet(Dataset):
 
             plate = os.path.basename(img_p).split('_')[0]
 
-            [label.append(self.provinces2idx[p]) for p in plate]
-
-            # label.append(self.provinces2idx[plate[0]])
-            # [label.append(self.alphabets2idx[p]) for p in plate[1:]]
+            [label.append(self.chars2idx[p]) for p in plate]
 
             if self.transform is not None:
                 text_img = self.transform(text_img)
@@ -147,17 +142,3 @@ class alignCollate(object):
         images = torch.cat([t.unsqueeze(0) for t in images], 0)
 
         return images, labels
-
-
-if __name__ == '__main__':
-    root = '/home/sinter/sinter/workspace-huawain/Car/text_detection_region/demo_data'
-    train_data = ImageDataSet(root, cfg.chars2idx, is_train=True)
-
-    train_loader = torch.utils.data.DataLoader(train_data,
-                                               batch_size=1,
-                                               shuffle=True,
-                                               sampler=None,
-                                               num_workers=1,
-                                               collate_fn=alignCollate(imgH=64,
-                                                                       imgW=128,
-                                                                       keep_ratio=False))

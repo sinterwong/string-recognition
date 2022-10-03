@@ -207,7 +207,7 @@ if __name__ == '__main__':
         # cam = grad_cam.generate_cam(
         #     data, labels_pro, num_classes=len(cfg.alphabets))
         for l in range(3, 26):
-            cam = grad_cam.generate_cam(data, labels_pro, num_classes=len(cfg.provinces), nl=l)
+            cam = grad_cam.generate_cam(data, labels_pro, num_classes=len(cfg.chars), nl=l)
             # Save mask
             save_class_activation_images(
                 original_image, cam, "AM_SW_F128_"+str(l) + "_" + file_name_to_export, file_name_to_export.split('_')[0])

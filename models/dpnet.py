@@ -73,7 +73,7 @@ class DpNet(nn.Module):
             nn.Linear(3584, 64),
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
-            nn.Linear(64, len(cfg.provinces)),
+            nn.Linear(64, len(cfg.chars)),
         )
 
         self.classifier2 = nn.Sequential(

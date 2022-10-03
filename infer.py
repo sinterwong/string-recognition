@@ -65,7 +65,6 @@ class OnnxInference():
         # forward_start = cv2.getTickCount()
         input_feed = self._get_input_feed(self.input_name, data)
         out = self.session.run(self.output_name, input_feed=input_feed)[0]
-        print(out.shape)
         ret = []
         for o in out:
             ret.append(int(np.argmax(o, axis=1)))

@@ -7,8 +7,8 @@ train_root = 'datasets/train'
 val_root = 'datasets/val'
 
 workers = 8
-batch_size = 8
-input_size = (80, 192)
+batch_size = 128
+input_size = (64, 192)
 # pixel_mean = [0.485, 0.456, 0.406]
 # pixel_std = [0.229, 0.224, 0.225]
 bright_prob = 0.2
@@ -21,35 +21,24 @@ pad = 3
 text_length = 4
 
 # chars = "皖沪津渝冀晋蒙辽吉黑苏浙京闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学挂警港澳武ABCDEFGHJKLMNPQRSTUVWXYZ0123456789-"
-chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+chars = "0123456789"
 
 chars2idx = {v: k for k, v in dict(enumerate(chars)).items()}
-# alphabets2idx = {v: k for k, v in dict(enumerate(alphabets)).items()}
 
 
 ''' solver setting '''
-nepoch = 40
+nepoch = 100
 device = 'cuda'
-device_id = "3"
+device_id = "0"
 
-pre_trained = ''
 output = 'work_dirs/'
-displayInterval = 100
-num_test_display = 10
-lr = 0.01
+displayInterval = 20
+lr = 0.1
 beta1 = 0.9
-adam = False
-adadelta = True
-keep_ratio = False
-random_sample = False
-manual_seed = 666
-nc = 3
-lr_step_size = 15
+lr_step_size = 18
 lr_gamma = 0.5
-loss_name = "amsoftmax"  # amsoftmax, ce
+loss_name = "ce"  # amsoftmax, ce
+weight_decay = 1e-6
 
-# resume_file = "restart"
-# resume_file = "models/trained/DpNet_AM_SW_F128_acc0.98694.pth"
-# resume_file = "models/logs/DpNetV3_SR_Acc0.98285.pth"
-pretrained_path = "weights/resnet18-5c106cde.pth"
+pretrained_path = None
 resume_file = None

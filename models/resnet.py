@@ -128,7 +128,7 @@ class ResNet(nn.Module):
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
 
-        self.inplanes = 64
+        self.inplanes = 16
         self.dilation = 1
         if replace_stride_with_dilation is None:
             # each element in the tuple indicates if we should replace
@@ -144,12 +144,12 @@ class ResNet(nn.Module):
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
+        self.layer1 = self._make_layer(block, 16, layers[0])
+        self.layer2 = self._make_layer(block, 32, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2,
+        self.layer3 = self._make_layer(block, 64, layers[2], stride=2,
                                        dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
+        self.layer4 = self._make_layer(block, 128, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
@@ -307,39 +307,55 @@ class AdaptiveAvgPool2dCustom(nn.Module):
 
 class ResDpnet(nn.Module):
   
-    def __init__(self, f=False, pretrained=None, length=None):
+    def __init__(self, f=False, pretrained=None, s=1, length=None):
         super(ResDpnet, self).__init__()
         self.f = f
+        self.s = s
         self.cnn = resnet10(pretrained=pretrained);
 
-        self.gap = AdaptiveAvgPool2dCustom((1, length))
+        self.gap = AdaptiveAvgPool2dCustom((1, length * self.s))
 
-        self.classifier = nn.Sequential(
-            nn.Linear(512, 128),
+        self.owc_fc = nn.Sequential(
+            nn.Linear(128 * self.s, 64),
             nn.ReLU(inplace=True),
         )
-        self.owc_fc = nn.Linear(128, len(cfg.chars), bias=self.f)
+        self.softmax = nn.Softmax(dim=1)
+        self.classifier1 = nn.Linear(64, len(cfg.chars), bias=self.f)
+        self.classifier2 = nn.Linear(64, len(cfg.chars), bias=self.f)
+        self.classifier3 = nn.Linear(64, len(cfg.chars), bias=self.f)
+        self.classifier4 = nn.Linear(64, len(cfg.chars), bias=self.f)
 
     def forward(self, input):
         # conv features
         out = self.cnn(input)
         out = self.gap(out)
-        out = [c.view(c.size(0), -1) for c in out.split(1, dim=3)]
+        out = [c.reshape(c.size(0), -1) for c in out.split(self.s, dim=3)]
         if not self.f:
             # w 就是最后一层全连接, 需要对最后一层全连接的参数进行除模操作
-            w = self.owc_fc.weight.data.permute(1, 0)
+            w = self.classifier1.weight.data.permute(1, 0)
             w_norm = torch.norm(w, p=2, dim=0, keepdim=True).clamp(min=1e-12)
             w_norm = torch.div(w, w_norm)
-            self.owc_fc.weight.data = w_norm.permute(1, 0)
+            self.classifier1.weight.data = w_norm.permute(1, 0)
             for i in range(len(out)):
-                out[i] = self.classifier(out[i])
+                out[i] = self.owc_fc(out[i])
                 # 使用 am-softmax
                 x_norm = torch.norm(out[i], p=2, dim=1, keepdim=True).clamp(min=1e-12)
                 out[i] = torch.div(out[i], x_norm)
-                out[i] = self.owc_fc(out[i])
+                # out[i] = self.softmax(self.classifier1(out[i]))
+                # out[i] = self.classifier1(out[i])
+            out[0] = self.classifier1(out[0])
+            out[1] = self.classifier2(out[1])
+            out[2] = self.classifier3(out[2])
+            out[3] = self.classifier4(out[3])
         else:
             for i in range(len(out)):
-                out[i] = self.classifier(out[i])
                 out[i] = self.owc_fc(out[i])
+                # out[i] = self.softmax(self.classifier1(out[i]))
+                # out[i] = self.classifier1(out[i])
+            out[0] = self.classifier1(out[0])
+            out[1] = self.classifier2(out[1])
+            out[2] = self.classifier3(out[2])
+            out[3] = self.classifier4(out[3])
+                
         out = torch.cat([o.unsqueeze(0) for o in out], dim=0)
         return out

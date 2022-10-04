@@ -67,7 +67,6 @@ class DpNet(nn.Module):
 
         self.cnn = cnn
 
-
         self.classifier1 = nn.Sequential(
             # nn.Dropout(),
             nn.Linear(512, 64),
@@ -156,7 +155,8 @@ class DpNet(nn.Module):
         # print(out6.size())
         # print(out7.size())
 
-        out = torch.cat([i.unsqueeze(0) for i in [out1, out2, out3, out4, out5, out6, out7]], dim=0)
+        out = torch.cat([i.unsqueeze(0)
+                        for i in [out1, out2, out3, out4, out5, out6, out7]], dim=0)
         return out
 
 

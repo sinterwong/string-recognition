@@ -5,6 +5,7 @@ import os
 from imutils import paths
 import tqdm
 
+
 class OnnxInference():
     def __init__(self, model_path, input_size, classes):
         self.idx2class = dict(enumerate(classes))
@@ -81,15 +82,19 @@ class OnnxInference():
         ret = "".join([self.idx2class[c] for c in pred])
         if not os.path.exists(out_root):
             os.makedirs(out_root)
-        cv2.imwrite(os.path.join(out_root, ret + "_" + os.path.basename(im_path)), image)
+        cv2.imwrite(os.path.join(out_root, ret + "_" +
+                    os.path.basename(im_path)), image)
 
     def multi_images(self, im_root, out_root):
         im_paths = list(paths.list_images(im_root))
         start = cv2.getTickCount()
-        [self.single_image(p, out_root) for p in tqdm.tqdm(im_paths, total=len(im_paths))]
+        [self.single_image(p, out_root)
+         for p in tqdm.tqdm(im_paths, total=len(im_paths))]
         end = cv2.getTickCount()
-        print("avg cost {} s".format((end - start) / cv2.getTickFrequency() / len(im_paths)))
+        print("avg cost {} s".format((end - start) /
+              cv2.getTickFrequency() / len(im_paths)))
         print("total cost {} s".format((end - start) / cv2.getTickFrequency()))
+
 
 def main():
     ####### onnxruntime #######
@@ -99,6 +104,7 @@ def main():
     chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     engine = OnnxInference(model_paths, (80, 192), chars)
     engine.multi_images(im_root, out_root)
+
 
 if __name__ == "__main__":
     main()

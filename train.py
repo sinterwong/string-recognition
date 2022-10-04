@@ -1,7 +1,7 @@
 from __future__ import print_function
 from loss import AMSoftmax
 import logging
-from models.dpnet_v3 import DpNet
+from models.dpnet import DpNet
 from models.resnet import ResDpnet
 from verification import eval_dpnet
 import time
@@ -45,53 +45,48 @@ def get_n_params(model):
     return pp
 
 
-def train_model(cfg, lrScheduler, train_loader, store_name, model, criterion, optimizer, use_gpu):
-    epochs = cfg.nepoch
-    batch_size = cfg.batch_size
-    device = cfg.device
+def train_model(cfg, lrScheduler, train_loader, model, criterion, optimizer, use_gpu):
     best_acc = 0
 
-    for epoch in range(epochs):
+    for epoch in range(cfg.nepoch):
 
         # model train
         loss_aver = []
         model.train(True)
         start = time.time()
-
+        scaler = torch.cuda.amp.GradScaler()
         for i, (data, label_pro) in enumerate(train_loader):
-            if len(data) != batch_size:
-                continue
-            data = data.to(device) if use_gpu else data
-            # predict -- > [7, batch, 35]
-            predicts = model(data)
-            predict_lp = predicts.split(1, 0)  # ([1, batch, 35], ....)
+            with torch.cuda.amp.autocast():  # 自动混合精度 (pytorch1.6之后)
+                data = data.to(cfg.device) if use_gpu else data
+                # predict -- > [7, batch, 35]
+                predicts = model(data)
+                predict_lp = predicts.split(1, 0)  # ([1, batch, 35], ....)
 
-            loss = 0.0
-            for j in range(len(predict_lp)):
-                l = Variable(torch.LongTensor(
-                    [el[j] for el in label_pro]).cuda(0))
+                loss = torch.cuda.FloatTensor(
+                    [0]) if data.is_cuda else torch.Tensor([0])
+                for j in range(len(predict_lp)):
+                    l = Variable(torch.LongTensor(
+                        [el[j] for el in label_pro]).cuda(0))
 
-                loss += criterion(predict_lp[j].squeeze(0), l)
+                    loss += criterion(predict_lp[j].squeeze(0), l)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
 
-            loss_aver.append(loss.data)
+                loss_aver.append(loss.data)
 
-            loss_val = sum(loss_aver) / len(loss_aver)
+                loss_val = sum(loss_aver) / len(loss_aver)
 
-            if i % cfg.displayInterval == 0:
-                logging.info('[%d/%d][%d/%d] Loss: %f' %
-                             (epoch, cfg.nepoch, i, len(train_loader), loss_val))
-        if len(loss_aver) < 1:
-            continue
-
+                if i % cfg.displayInterval == 0:
+                    logging.info('[%d/%d][%d/%d] LR: %f - Loss: %f' %
+                                 (epoch, cfg.nepoch, i, len(train_loader), optimizer.state_dict()['param_groups'][0]['lr'], loss_val))
+        lrScheduler.step()
         logging.info('%s %s %s\n' % (epoch, sum(loss_aver) /
                                      len(loss_aver), time.time() - start))
         model.eval()
         count, correct, error, precision, avg_time = eval_dpnet(
-            model, use_gpu, device, save_error=True)
+            model, use_gpu, cfg.device, save_error=False)
         logging.info(
             '****************************** Val ********************************')
         logging.info('epoch: %s, loss: %3.3f, cost time: %s' % (
@@ -101,18 +96,18 @@ def train_model(cfg, lrScheduler, train_loader, store_name, model, criterion, op
         logging.info(
             '*******************************************************************\n')
 
-        if precision > best_acc:
-            state = {
-                'net': model.state_dict(),
-                'acc': precision
-            }
-            save_path = os.path.join(
-                cfg.output, "best_%.3f.pth" % (precision))
-            torch.save(state, save_path)
+        # if precision > best_acc:
+        state = {
+            'net': model.state_dict(),
+            'acc': precision,
+            'epoch': epoch,
+            # 'lr_scheduler': lr_scheduler
+        }
+        save_path = os.path.join(
+            cfg.output, "best_%.3f.pth" % (precision))
+        torch.save(state, save_path)
 
-            best_acc = precision
-
-        lrScheduler.step()
+        best_acc = precision
 
     return model
 
@@ -122,15 +117,27 @@ def main():
     if not os.path.isdir(cfg.output):
         os.makedirs(cfg.output)
 
-    store_name = os.path.join(cfg.output, 'best.pth')
     # model = DpNet(cfg.input_size[0], length=cfg.text_length)
-    model = ResDpnet(False, pretrained=cfg.pretrained_path,
+    model = ResDpnet(True, pretrained=cfg.pretrained_path,
                      length=cfg.text_length)
     if cfg.resume_file:
         if not os.path.isfile(cfg.resume_file):
             print("fail to load existed model! Existing ...")
             exit(0)
-        model.load_state_dict(torch.load(cfg.resume_file)['net'])
+
+        print("loading resume model...")
+        checkpoint = torch.load(cfg.resume_file)
+        resume_dict = checkpoint['net']
+        model_dict = model.state_dict()
+
+        # 将与 model_dict 对应的参数提取出来保存
+        temp_dict = {k: v for k, v in resume_dict.items() if k in model_dict}
+        # 根据 det_model_dict 的 key 更新现有的 model_dict 的值(预训练的参数值替换初始化的参数)
+        model_dict.update(temp_dict)
+        # 加载模型需要的参数
+        model.load_state_dict(model_dict)
+        # lr_scheduler = checkpoint['lr_scheduler']
+        # model.load_state_dict(torch.load(cfg.resume_file)['net'])
     else:
         model.apply(weights_init)  # 初始化参数
     # if use_gpu:
@@ -144,7 +151,8 @@ def main():
     else:
         criterion = nn.CrossEntropyLoss()
 
-    optimizer = optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9)
+    optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters(
+    )), lr=cfg.lr, momentum=0.9, weight_decay=cfg.weight_decay)
 
     lr_scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=cfg.lr_step_size, gamma=cfg.lr_gamma)
@@ -160,7 +168,7 @@ def main():
                               num_workers=cfg.workers,
                               collate_fn=alignCollate())
 
-    _ = train_model(cfg, lr_scheduler, train_loader, store_name,
+    _ = train_model(cfg, lr_scheduler, train_loader,
                     model, criterion, optimizer, use_gpu)
 
 

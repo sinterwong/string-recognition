@@ -3,7 +3,7 @@ from __future__ import division
 
 import torch
 import collections
-from models.dpnet_v3 import DpNet
+from models.dpnet import DpNet
 import config as cfg
 
 

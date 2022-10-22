@@ -1,4 +1,5 @@
 import time
+import torch
 from torch.utils.data import DataLoader
 from data.transform import data_transform
 from dataset import resizeNormalize, TextImageSet, randomSequentialSampler, alignCollate
@@ -23,40 +24,42 @@ def eval_dpnet(model, use_gpu, device, save_error=False, save_error_dir='work_di
     val_loader = DataLoader(val_data, batch_size=1,
                             shuffle=False, num_workers=6)
     start = time.time()
-    for i, (data, labels_pro, img_p) in enumerate(val_loader):
-        count += 1
-        if use_gpu:
-            data = data.to(device)
+    with torch.no_grad():
+        for i, (data, labels_pro, img_p) in enumerate(val_loader):
+            count += 1
+            if use_gpu:
+                data = data.to(device)
 
-        # Forward pass: Compute predicted y by passing x to the model
-        label_predict = model(data)
+            # Forward pass: Compute predicted y by passing x to the model
+            label_predict = model(data)
 
-        label_predict = label_predict.split(1, 0)  # ([1, batch, 35], ....)
+            label_predict = label_predict.split(1, 0)  # ([1, batch, 35], ....)
 
-        output = [el.squeeze(0).data.cpu().numpy().tolist()
-                  for el in label_predict]
-        # print(output[0])
-        # print(len(output[0]))
-        # print(len(output[0][0]))
+            output = [el.squeeze(0).data.cpu().numpy().tolist()
+                      for el in label_predict]
+            # print(output[0])
+            # print(len(output[0]))
+            # print(len(output[0][0]))
 
-        predict_label = [t[0].index(max(t[0])) for t in output]
+            predict_label = [t[0].index(max(t[0])) for t in output]
 
-        label = [int(el.numpy()) for el in labels_pro]
-        #   compare YI, outputY
-        if is_equal(predict_label, label) == cfg.text_length:
-            correct += 1
-        else:
-            error += 1
-            if save_error:
-                pre_result = ""
-                if not os.path.exists(save_error_dir):
-                    os.makedirs(save_error_dir)
+            label = [int(el.numpy()) for el in labels_pro]
+            #   compare YI, outputY
+            if is_equal(predict_label, label) == cfg.text_length:
+                correct += 1
+            else:
+                error += 1
+                if save_error:
+                    pre_result = ""
+                    if not os.path.exists(save_error_dir):
+                        os.makedirs(save_error_dir)
 
-                for p in range(len(predict_label)):
-                    pre_result += cfg.chars[predict_label[p]]
+                    for p in range(len(predict_label)):
+                        pre_result += cfg.chars[predict_label[p]]
 
-                img_name = pre_result + "_" + os.path.basename(img_p[0])
+                    img_name = pre_result + "_" + os.path.basename(img_p[0])
 
-                shutil.copy(img_p[0], os.path.join(save_error_dir, img_name))
+                    shutil.copy(img_p[0], os.path.join(
+                        save_error_dir, img_name))
 
     return count, correct, error, float(correct) / count, (time.time() - start) / count

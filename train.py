@@ -45,7 +45,7 @@ def get_n_params(model):
     return pp
 
 
-def train_model(cfg, lrScheduler, train_loader, model, criterion, optimizer, use_gpu):
+def train_model(cfg, lr_scheduler, train_loader, model, criterion, optimizer, use_gpu):
     best_acc = 0
 
     for epoch in range(cfg.nepoch):
@@ -81,7 +81,7 @@ def train_model(cfg, lrScheduler, train_loader, model, criterion, optimizer, use
                 if i % cfg.displayInterval == 0:
                     logging.info('[%d/%d][%d/%d] LR: %f - Loss: %f' %
                                  (epoch, cfg.nepoch, i, len(train_loader), optimizer.state_dict()['param_groups'][0]['lr'], loss_val))
-        lrScheduler.step()
+        
         logging.info('%s %s %s\n' % (epoch, sum(loss_aver) /
                                      len(loss_aver), time.time() - start))
         model.eval()
@@ -95,7 +95,6 @@ def train_model(cfg, lrScheduler, train_loader, model, criterion, optimizer, use
                      (count, correct, error, precision, avg_time))
         logging.info(
             '*******************************************************************\n')
-
         # if precision > best_acc:
         state = {
             'net': model.state_dict(),
@@ -106,8 +105,8 @@ def train_model(cfg, lrScheduler, train_loader, model, criterion, optimizer, use
         save_path = os.path.join(
             cfg.output, "best_%.3f.pth" % (precision))
         torch.save(state, save_path)
-
         best_acc = precision
+        lr_scheduler.step()
 
     return model
 
@@ -120,6 +119,9 @@ def main():
     # model = DpNet(cfg.input_size[0], length=cfg.text_length)
     model = ResDpnet(True, pretrained=cfg.pretrained_path,
                      length=cfg.text_length)
+    model = model.to(cfg.device)
+    print('model params: ', get_n_params(model))
+    
     if cfg.resume_file:
         if not os.path.isfile(cfg.resume_file):
             print("fail to load existed model! Existing ...")
@@ -137,15 +139,9 @@ def main():
         # 加载模型需要的参数
         model.load_state_dict(model_dict)
         # lr_scheduler = checkpoint['lr_scheduler']
-        # model.load_state_dict(torch.load(cfg.resume_file)['net'])
     else:
         model.apply(weights_init)  # 初始化参数
-    # if use_gpu:
-    #     # 设置多卡训练
-    #     model = torch.nn.DataParallel(
-    #         model, device_ids=list(range(torch.cuda.device_count())))
-    model = model.to(cfg.device)
-    print('model params: ', get_n_params(model))
+    
     if cfg.loss_name == "amsoftmax":
         criterion = AMSoftmax()
     else:

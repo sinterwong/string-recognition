@@ -147,9 +147,9 @@ class ResNet(nn.Module):
         self.layer1 = self._make_layer(block, 16, layers[0])
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=2,
+        self.layer3 = self._make_layer(block, 32, layers[2], stride=2,
                                        dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 128, layers[3], stride=2,
+        self.layer4 = self._make_layer(block, 64, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
@@ -312,23 +312,39 @@ class ResDpnet(nn.Module):
         self.f = f
         self.s = s
         self.cnn = resnet10(pretrained=pretrained);
+        # self.requires_grad_(False);
+        # self.gap = nn.AdaptiveAvgPool2d((1, length))
+        # self.gap = AdaptiveAvgPool2dCustom((1, length * self.s))
 
-        self.gap = AdaptiveAvgPool2dCustom((1, length * self.s))
-
-        self.owc_fc = nn.Sequential(
-            nn.Linear(128 * self.s, 64),
+        self.classifier1 = nn.Sequential(
+            nn.Linear(64, 64),
             nn.ReLU(inplace=True),
+            nn.Linear(64, len(cfg.chars)),
         )
-        self.softmax = nn.Softmax(dim=1)
-        self.classifier1 = nn.Linear(64, len(cfg.chars), bias=self.f)
-        self.classifier2 = nn.Linear(64, len(cfg.chars), bias=self.f)
-        self.classifier3 = nn.Linear(64, len(cfg.chars), bias=self.f)
-        self.classifier4 = nn.Linear(64, len(cfg.chars), bias=self.f)
+        self.classifier2 = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, len(cfg.chars)),
+        )
+        self.classifier3 = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, len(cfg.chars)),
+        )
+        self.classifier4 = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, len(cfg.chars)),
+        )
+        # self.classifier2 = nn.Linear(32, len(cfg.chars), bias=self.f)
+        # self.classifier3 = nn.Linear(32, len(cfg.chars), bias=self.f)
+        # self.classifier4 = nn.Linear(32, len(cfg.chars), bias=self.f)
+
 
     def forward(self, input):
         # conv features
         out = self.cnn(input)
-        out = self.gap(out)
+        # out = self.gap(out)
         out = [c.reshape(c.size(0), -1) for c in out.split(self.s, dim=3)]
         if not self.f:
             # w 就是最后一层全连接, 需要对最后一层全连接的参数进行除模操作
@@ -337,20 +353,16 @@ class ResDpnet(nn.Module):
             w_norm = torch.div(w, w_norm)
             self.classifier1.weight.data = w_norm.permute(1, 0)
             for i in range(len(out)):
-                out[i] = self.owc_fc(out[i])
                 # 使用 am-softmax
                 x_norm = torch.norm(out[i], p=2, dim=1, keepdim=True).clamp(min=1e-12)
                 out[i] = torch.div(out[i], x_norm)
-                # out[i] = self.softmax(self.classifier1(out[i]))
                 # out[i] = self.classifier1(out[i])
             out[0] = self.classifier1(out[0])
             out[1] = self.classifier2(out[1])
             out[2] = self.classifier3(out[2])
             out[3] = self.classifier4(out[3])
         else:
-            for i in range(len(out)):
-                out[i] = self.owc_fc(out[i])
-                # out[i] = self.softmax(self.classifier1(out[i]))
+            # for i in range(len(out)):
                 # out[i] = self.classifier1(out[i])
             out[0] = self.classifier1(out[0])
             out[1] = self.classifier2(out[1])
@@ -359,3 +371,12 @@ class ResDpnet(nn.Module):
                 
         out = torch.cat([o.unsqueeze(0) for o in out], dim=0)
         return out
+    
+    # def forward(self, input):
+    #       # conv features
+    #     out = self.cnn(input)
+    #     out = self.gap(out)
+
+    #     out = [c.view(c.size(0), -1) for c in out.split(1, dim=3)]
+    #     out = torch.cat([self.classifier1(o).unsqueeze(0) for o in out], dim=0)
+    #     return out

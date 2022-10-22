@@ -7,7 +7,7 @@ import config as cfg
 def main():
     # 初始化模型
 
-    model = ResDpnet(False, length=cfg.text_length)
+    model = ResDpnet(True, length=cfg.text_length)
     model_path = "work_dirs/best_0.970.pth"
     model_info = torch.load(model_path)
     model.load_state_dict(model_info["net"])

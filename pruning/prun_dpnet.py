@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torchvision import datasets, transforms
-from models.dpnet_v3 import DpNet
-import pure_config as pcfg
+from models.dpnet import DpNet
+import pruning.prun_config as pcfg
 import config
 import collections
 from verification import eval_dpnet

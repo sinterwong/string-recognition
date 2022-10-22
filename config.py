@@ -21,7 +21,7 @@ pad = 3
 text_length = 4
 
 # chars = "皖沪津渝冀晋蒙辽吉黑苏浙京闽赣鲁豫鄂湘粤桂琼川贵云藏陕甘青宁新学挂警港澳武ABCDEFGHJKLMNPQRSTUVWXYZ0123456789-"
-chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 chars2idx = {v: k for k, v in dict(enumerate(chars)).items()}
 
@@ -33,7 +33,7 @@ device_id = "0"
 
 output = 'work_dirs/'
 displayInterval = 20
-lr = 0.01
+lr = 0.001
 beta1 = 0.9
 lr_step_size = 18
 lr_gamma = 0.5
@@ -41,4 +41,4 @@ loss_name = "ce"  # amsoftmax, ce
 weight_decay = 1e-6
 
 pretrained_path = None
-resume_file = None
+resume_file = "models/resnet_pretrained.pth"

@@ -66,7 +66,7 @@ class TextImageSet(Dataset):
 
             text_img = read_image(img_p)
 
-            plate = os.path.basename(img_p).split('_')[0]
+            plate = os.path.basename(img_p).split('_')[0].lower()
 
             [label.append(self.chars2idx[p]) for p in plate]
 

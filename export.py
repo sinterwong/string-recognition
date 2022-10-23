@@ -8,13 +8,13 @@ def main():
     # 初始化模型
 
     model = ResDpnet(True, length=cfg.text_length)
-    model_path = "work_dirs/best_0.970.pth"
+    model_path = "work_dirs/resnet10_64x128_acc0.919.pth"
     model_info = torch.load(model_path)
     model.load_state_dict(model_info["net"])
     model.to("cpu")
     model.eval()
 
-    output = os.path.join("work_dirs", "best_%.3f.onnx" % model_info['acc'])
+    output = model_path.replace(".pth", ".onnx")
 
     dummy_input1 = torch.randn(1, 3, cfg.input_size[0], cfg.input_size[1])
     # convert to onnx

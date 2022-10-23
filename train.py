@@ -95,20 +95,18 @@ def train_model(cfg, lr_scheduler, train_loader, model, criterion, optimizer, us
                      (count, correct, error, precision, avg_time))
         logging.info(
             '*******************************************************************\n')
-        # if precision > best_acc:
-        state = {
-            'net': model.state_dict(),
-            'acc': precision,
-            'epoch': epoch,
-            # 'lr_scheduler': lr_scheduler
-        }
-        save_path = os.path.join(
-            cfg.output, "best_%.3f.pth" % (precision))
-        torch.save(state, save_path)
-        best_acc = precision
+        if precision > best_acc:
+            state = {
+                'net': model.state_dict(),
+                'acc': precision,
+                'epoch': epoch,
+                # 'lr_scheduler': lr_scheduler
+            }
+            save_path = os.path.join(
+                cfg.output, "resnet10_%dx%d_acc%.3f.pth" % (cfg.input_size[0], cfg.input_size[1], precision))
+            torch.save(state, save_path)
+            best_acc = precision
         lr_scheduler.step()
-
-    return model
 
 
 def main():
@@ -164,7 +162,7 @@ def main():
                               num_workers=cfg.workers,
                               collate_fn=alignCollate())
 
-    _ = train_model(cfg, lr_scheduler, train_loader,
+    train_model(cfg, lr_scheduler, train_loader,
                     model, criterion, optimizer, use_gpu)
 
 

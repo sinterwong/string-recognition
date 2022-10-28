@@ -103,7 +103,7 @@ def train_model(cfg, lr_scheduler, train_loader, model, criterion, optimizer, us
                 # 'lr_scheduler': lr_scheduler
             }
             save_path = os.path.join(
-                cfg.output, "resnet10_%dx%d_acc%.3f.pth" % (cfg.input_size[0], cfg.input_size[1], precision))
+                cfg.output, "dpnet_%dx%d_acc%.3f.pth" % (cfg.input_size[0], cfg.input_size[1], precision))
             torch.save(state, save_path)
             best_acc = precision
         lr_scheduler.step()
@@ -114,9 +114,9 @@ def main():
     if not os.path.isdir(cfg.output):
         os.makedirs(cfg.output)
 
-    # model = DpNet(cfg.input_size[0], length=cfg.text_length)
-    model = ResDpnet(True, pretrained=cfg.pretrained_path,
-                     length=cfg.text_length)
+    model = DpNet(cfg.input_size[0], length=cfg.text_length)
+    # model = ResDpnet(True, pretrained=cfg.pretrained_path,
+                    #  length=cfg.text_length)
     model = model.to(cfg.device)
     print('model params: ', get_n_params(model))
     

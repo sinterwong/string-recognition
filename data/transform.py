@@ -55,13 +55,15 @@ def data_transform(is_train=True):
     # normalize_transform = T.Normalize(mean=cfg.pixel_mean, std=cfg.pixel_std)
     if is_train:
         transform = T.Compose([
-            T.Resize(cfg.input_size),
             T.ColorJitter(brightness=cfg.bright_prob, saturation=cfg.saturation_prob,
                           contrast=cfg.contrast_prob, hue=cfg.hue_prob),
             T.RandomGrayscale(cfg.grayScale_prob),
-            AddPepperNoise(0.9, p=0.5),
+            AddPepperNoise(0.9, p=0.2),
+            # T.RandomAffine(15),
+            # T.GaussianBlur((3, 3), sigma=(0.1, 2.0)),
+            T.Resize(cfg.input_size),
             T.Pad(cfg.pad),
-            T.RandomCrop(cfg.input_size),
+            # T.RandomCrop(cfg.input_size),
             T.ToTensor(),
             # normalize_transform,
         ])

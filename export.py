@@ -8,7 +8,7 @@ def main():
     # 初始化模型
 
     model = ResDpnet(True, length=cfg.text_length)
-    model_path = "work_dirs/resnet10_64x128_acc0.919.pth"
+    model_path = "work_dirs/resnet10_64x128_acc0.941.pth"
     model_info = torch.load(model_path)
     model.load_state_dict(model_info["net"])
     model.to("cpu")

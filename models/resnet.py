@@ -346,10 +346,10 @@ class ResDpnet(nn.Module):
         out = [c.reshape(c.size(0), -1) for c in out.split(self.s, dim=3)]
         if not self.f:
             # w 就是最后一层全连接, 需要对最后一层全连接的参数进行除模操作
-            w = self.classifier1.weight.data.permute(1, 0)
+            w = self.classifier.weight.data.permute(1, 0)
             w_norm = torch.norm(w, p=2, dim=0, keepdim=True).clamp(min=1e-12)
             w_norm = torch.div(w, w_norm)
-            self.classifier1.weight.data = w_norm.permute(1, 0)
+            self.classifier.weight.data = w_norm.permute(1, 0)
             for i in range(len(out)):
                 # 使用 am-softmax
                 x_norm = torch.norm(out[i], p=2, dim=1, keepdim=True).clamp(min=1e-12)

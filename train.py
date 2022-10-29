@@ -64,6 +64,11 @@ def train_model(cfg, lr_scheduler, train_loader, model, criterion, optimizer, us
 
                 loss = torch.cuda.FloatTensor(
                     [0]) if data.is_cuda else torch.Tensor([0])
+
+                # random_index = random.randint(0, len(predict_lp) - 1)
+                # l = Variable(torch.LongTensor([el[random_index] for el in label_pro]).cuda(0))
+                # loss += criterion(predict_lp[random_index].squeeze(0), l)
+
                 for j in range(len(predict_lp)):
                     l = Variable(torch.LongTensor(
                         [el[j] for el in label_pro]).cuda(0))
@@ -81,7 +86,7 @@ def train_model(cfg, lr_scheduler, train_loader, model, criterion, optimizer, us
                 if i % cfg.displayInterval == 0:
                     logging.info('[%d/%d][%d/%d] LR: %f - Loss: %f' %
                                  (epoch, cfg.nepoch, i, len(train_loader), optimizer.state_dict()['param_groups'][0]['lr'], loss_val))
-        
+
         logging.info('%s %s %s\n' % (epoch, sum(loss_aver) /
                                      len(loss_aver), time.time() - start))
         model.eval()
@@ -103,10 +108,22 @@ def train_model(cfg, lr_scheduler, train_loader, model, criterion, optimizer, us
                 # 'lr_scheduler': lr_scheduler
             }
             save_path = os.path.join(
-                cfg.output, "dpnet_%dx%d_acc%.3f.pth" % (cfg.input_size[0], cfg.input_size[1], precision))
+                cfg.output, "%s_%dx%d_acc%.3f.pth" % (cfg.model_name, cfg.input_size[0], cfg.input_size[1], precision))
             torch.save(state, save_path)
             best_acc = precision
         lr_scheduler.step()
+
+    # model.eval()
+    # count, correct, error, precision, avg_time = eval_dpnet(
+    #     model, use_gpu, cfg.device, save_error=True)
+    # logging.info(
+    #     '****************************** Val ********************************')
+    # # logging.info('epoch: %s, loss: %3.3f, cost time: %s' % (
+    # #     epoch, float(sum(loss_aver) / len(loss_aver)), time.time() - start))
+    # logging.info('*** total %s correct %s error %s precision %s avgTime %s' %
+    #              (count, correct, error, precision, avg_time))
+    # logging.info(
+    #     '*******************************************************************\n')
 
 
 def main():
@@ -114,12 +131,14 @@ def main():
     if not os.path.isdir(cfg.output):
         os.makedirs(cfg.output)
 
-    model = DpNet(cfg.input_size[0], length=cfg.text_length)
-    # model = ResDpnet(True, pretrained=cfg.pretrained_path,
-                    #  length=cfg.text_length)
+    if cfg.model_name == "dpnet":
+        model = DpNet(cfg.input_size[0], length=cfg.text_length)
+    elif cfg.model_name == "resnet":
+        model = ResDpnet(True, pretrained=cfg.pretrained_path,
+                         length=cfg.text_length)
     model = model.to(cfg.device)
     print('model params: ', get_n_params(model))
-    
+
     if cfg.resume_file:
         if not os.path.isfile(cfg.resume_file):
             print("fail to load existed model! Existing ...")
@@ -139,7 +158,7 @@ def main():
         # lr_scheduler = checkpoint['lr_scheduler']
     else:
         model.apply(weights_init)  # 初始化参数
-    
+
     if cfg.loss_name == "amsoftmax":
         criterion = AMSoftmax()
     else:
@@ -163,7 +182,7 @@ def main():
                               collate_fn=alignCollate())
 
     train_model(cfg, lr_scheduler, train_loader,
-                    model, criterion, optimizer, use_gpu)
+                model, criterion, optimizer, use_gpu)
 
 
 if __name__ == '__main__':

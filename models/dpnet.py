@@ -27,13 +27,14 @@ class DpNet(nn.Module):
     def __init__(self, imgH, nm=None, leakyRelu=False, length=None):
         super(DpNet, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
+        self.length = length
 
         ks = [3, 3, 3, 3, 3, 3, 3, 2]
         ps = [1, 1, 1, 1, 1, 1, 0, 0]
         ss = [1, 1, 1, 1, 1, 1, 1, 1]
 
         if nm is None:
-            nm = [64, 64, 128, 128, 128, 128, 256, 256]
+            nm = [64, 128, 256, 256, 512, 512, 512, 512]
 
         cnn = nn.Sequential()
 
@@ -66,10 +67,28 @@ class DpNet(nn.Module):
         convRelu(7, True)  # 512x1x24
 
         self.cnn = cnn
+        
+        # self.requires_grad_(False)
+        
+        # self.gap = nn.AdaptiveAvgPool2d((1, length))
+        self.gap = nn.AdaptiveAvgPool2d((1, 1))
 
-        self.gap = nn.AdaptiveAvgPool2d((1, length))
-
+        self.classifier = nn.Sequential(
+            nn.Linear(nm[-1], 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, len(cfg.chars)),
+        )
         self.classifier1 = nn.Sequential(
+            nn.Linear(nm[-1], 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, len(cfg.chars)),
+        )
+        self.classifier2 = nn.Sequential(
+            nn.Linear(nm[-1], 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, len(cfg.chars)),
+        )
+        self.classifier3 = nn.Sequential(
             nn.Linear(nm[-1], 64),
             nn.ReLU(inplace=True),
             nn.Linear(64, len(cfg.chars)),
@@ -80,6 +99,22 @@ class DpNet(nn.Module):
         out = self.cnn(input)
         out = self.gap(out)
 
-        out = [c.view(c.size(0), -1) for c in out.split(1, dim=3)]
-        out = torch.cat([self.classifier1(o).unsqueeze(0) for o in out], dim=0)
+        # out = [c.view(c.size(0), -1) for c in out.split(1, dim=3)]
+        # out = torch.cat([self.classifier(o).unsqueeze(0) for o in out], dim=0)
+        
+        out[0] = self.classifier(out[0])
+        out[1] = self.classifier1(out[1])
+        out[2] = self.classifier2(out[2])
+        out[3] = self.classifier3(out[3])
+        out = torch.cat([o.unsqueeze(0) for o in out], dim=0)
+
+        # out = torch.cat([self.classifier(out.view(out.size(0), -1)).unsqueeze(0) for _ in range(self.length)], dim=0)
+
+        # out = out.view(out.size(0), -1)
+        # out_1 = self.classifier(out).unsqueeze(0)
+        # out_2 = self.classifier1(out).unsqueeze(0)
+        # out_3 = self.classifier2(out).unsqueeze(0)
+        # out_4 = self.classifier3(out).unsqueeze(0)
+        # out = torch.cat([out_1, out_2, out_3, out_4], dim=0)
+
         return out

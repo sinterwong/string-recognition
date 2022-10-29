@@ -17,6 +17,7 @@ contrast_prob = 0.2
 hue_prob = 0.2
 grayScale_prob = 0.2
 pad = 3
+model_name = "resnet"  # [resnet, dpnet]
 
 text_length = 4
 
@@ -34,7 +35,7 @@ device_id = "0"
 
 output = 'work_dirs/'
 displayInterval = 20
-lr = 0.1
+lr = 0.01
 beta1 = 0.9
 lr_step_size = 18
 lr_gamma = 0.1
@@ -42,5 +43,5 @@ loss_name = "ce"  # amsoftmax, ce
 weight_decay = 1e-6
 
 pretrained_path = None
-# resume_file = "work_dirs/resnet10_64x128_acc0.830.pth"
-resume_file = None
+resume_file = "work_dirs/resnet_64x128_acc0.984.pth"
+# resume_file = "work_dirs/dpnet_64x128_acc0.684.pth"
